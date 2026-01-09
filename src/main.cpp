@@ -37,6 +37,15 @@ int main() {
       print_v(array);
       continue;
     }
+    else if(array[0] == "type"){
+      array.erase(array.begin());
+      for(auto it : array){
+        if(it == "exit" || it == "type" || it == "echo"){
+          cout << it << " is a shell builtin\n";
+        }
+        else cout << it << ": not found\n";
+      }
+    }
     else if(array[0] == "exit"){
       break;
     }
