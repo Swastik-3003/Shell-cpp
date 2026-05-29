@@ -45,7 +45,7 @@ void builtin_type(std::vector<std::string>& args){
         if(access(full_path.c_str(),F_OK)==0 && 
           access(full_path.c_str(),X_OK)==0){
           cmd_exists=true;
-          std::cout<<it<<" is "<<path<<"\n";  
+          std::cout<<it<<" is "<<full_path<<"\n";  
           break;
         }
       }
