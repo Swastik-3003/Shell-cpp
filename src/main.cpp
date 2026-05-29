@@ -73,7 +73,7 @@ void builtin_cd(std::vector<std::string>& args){
   else{
     const char* path=args[0].c_str();
     if(chdir(path)==-1){
-      std::cerr<<"cd: "<<path<<" No such file or directory\n";
+      std::cerr<<"cd: "<<path<<": No such file or directory\n";
     }
   }
 }
