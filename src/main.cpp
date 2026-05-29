@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cstring>
 #include <sstream>
 #include <functional>
 #include <map>
@@ -67,11 +68,15 @@ void builtin_pwd(std::vector<std::string>& args){
 
 void builtin_cd(std::vector<std::string>& args){
   args.erase(args.begin());
+  const char* env_home=std::getenv("HOME");
   if(args.size()>1){
     std::cerr<<"cd: too many arguments\n";
   }
   else{
     const char* path=args[0].c_str();
+    if(strcmp(path,"~")==0){
+     path=env_home; 
+    }
     if(chdir(path)==-1){
       std::cerr<<"cd: "<<path<<": No such file or directory\n";
     }
