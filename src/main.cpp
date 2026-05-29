@@ -64,12 +64,27 @@ void builtin_pwd(std::vector<std::string>& args){
     std::cerr<<"Error running getcwd()\n";
   }
 }
+
+void builtin_cd(std::vector<std::string>& args){
+  args.erase(args.begin());
+  if(args.size()>1){
+    std::cerr<<"cd: too many arguments\n";
+  }
+  else{
+    const char* path=args[0].c_str();
+    if(chdir(path)==-1){
+      std::cerr<<"cd: "<<path<<" No such file or directory\n";
+    }
+  }
+}
+
 std::map<std::string,builtin_func_ptr> 
   builtin_map= { 
     {"exit",builtin_exit},
     {"echo",builtin_echo},
     {"type",builtin_type},
-    {"pwd",builtin_pwd}
+    {"pwd",builtin_pwd},
+    {"cd",builtin_cd}
   };
 
 void loop(){
