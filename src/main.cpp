@@ -50,7 +50,7 @@ void builtin_type(std::vector<std::string>& args){
         }
       }
       if(!cmd_exists)
-        std::cout<<it<<": Not found\n";
+        std::cout<<it<<": not found\n";
     }
   }
 }
