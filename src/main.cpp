@@ -106,7 +106,7 @@ void loop(){
     }
     args_c.push_back(nullptr);
     if(execvp(args_c[0], const_cast<char* const*>(args_c.data()))<0){
-      std::cerr<<"No file exists\n";
+      std::cerr<<args_c[0]<<": command not found\n";
       exit(EXIT_FAILURE);
     }
     exit(0);
