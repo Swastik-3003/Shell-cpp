@@ -105,7 +105,7 @@ void loop(){
       args_c.push_back(it.c_str());
     }
     args_c.push_back(nullptr);
-    if(execv(args_c[0], const_cast<char* const*>(args_c.data()))<0){
+    if(execvp(args_c[0], const_cast<char* const*>(args_c.data()))<0){
       std::cerr<<"No file exists\n";
       exit(EXIT_FAILURE);
     }
