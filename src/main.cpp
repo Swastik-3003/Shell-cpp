@@ -92,64 +92,51 @@ std::map<std::string,builtin_func_ptr>
     {"cd",builtin_cd}
   };
 
-std::vector<std::string> tokenizer(std::string cmd, std::string token=""){
-  bool  single_quote_start=false,
-        double_quote_start=false,
-        single_quote_end=false,
-        double_quote_end=false;
+std::vector<std::string> tokenizer(std::string cmd){
+  bool  in_single_quote=false,
+        in_double_quote=false,
+        in_token=false;
+  std::string curr_token="";
   std::vector<std::string> tokens;
-  
-  for(auto& c:cmd){
-    // std::cout<<c<<std::endl;
-    if(c=='\"' && double_quote_start==false && single_quote_start==false){
-      double_quote_start=true;
-      continue;
-    }
-    if(c=='\"' && double_quote_start==true){
-      double_quote_start=false;
-      if(double_quote_end){
-        int n=tokens.size();
-        tokens[n-1]+=token;
+  int cmd_size=cmd.size();
+  for(int i=0; i<cmd_size; i++){
+    char c=cmd[i];
+    
+    if(c=='"' && !in_single_quote){
+      if(in_double_quote){
+        in_double_quote=false;
       }
       else{
-        double_quote_end=true;
-        tokens.push_back(token);
+        in_double_quote=true;
       }
-      token="";
+      in_token=true;
       continue;
     }
-    if(c=='\'' && single_quote_start==false && double_quote_start==false){
-      single_quote_start=true;
-      continue;
-    }
-    if(c=='\'' && single_quote_start==true){
-      single_quote_start=false;
-      if(single_quote_end){
-        int n=tokens.size();
-        tokens[n-1]+=token;
+    if(c=='\'' && !in_double_quote){
+      if(in_single_quote){
+        in_single_quote=false;
       }
       else{
-        single_quote_end=true;
-        tokens.push_back(token);
+        in_single_quote=true;
       }
-      token="";
+      in_token=true;
       continue;
     }
-    if(single_quote_start || double_quote_start){
-      token+=c;
+    if(c==' ' && !in_double_quote && !in_single_quote){
+      if(in_token){
+        tokens.push_back(curr_token);
+        curr_token="";
+        in_token=false;
+      }
       continue;
     }
-    if(c==' '){
-      single_quote_end=double_quote_end=false;
-      if(!token.empty())
-      tokens.push_back(token);
-      token="";
-    }
-    else{
-      token+=c;
-    }
+    in_token=true;
+    curr_token+=c;
+    continue;
   }
-  if(!token.empty()) tokens.push_back(token);
+  if(in_token){
+    tokens.push_back(curr_token);
+  }
   return tokens;
 }
 
