@@ -95,6 +95,7 @@ std::map<std::string,builtin_func_ptr>
 std::vector<std::string> tokenizer(std::string cmd, std::string token=""){
   bool  single_quote_start=false,
         double_quote_start=false,
+        single_quote_end=false,
         double_quote_end=false;
   std::vector<std::string> tokens;
   
@@ -135,6 +136,7 @@ std::vector<std::string> tokenizer(std::string cmd, std::string token=""){
       continue;
     }
     if(c==' '){
+      single_quote_end=double_quote_end=false;
       if(!token.empty())
       tokens.push_back(token);
       token="";
