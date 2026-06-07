@@ -124,11 +124,15 @@ std::vector<std::string> tokenizer(std::string cmd, std::string token=""){
     }
     if(c=='\'' && single_quote_start==true){
       single_quote_start=false;
-      double_quote_end=false;
-      if(!token.empty()){
-        tokens.push_back(token);
-        token="";
+      if(single_quote_end){
+        int n=tokens.size();
+        tokens[n-1]+=token;
       }
+      else{
+        single_quote_end=true;
+        tokens.push_back(token);
+      }
+      token="";
       continue;
     }
     if(single_quote_start || double_quote_start){
