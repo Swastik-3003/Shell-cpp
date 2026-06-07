@@ -92,17 +92,74 @@ std::map<std::string,builtin_func_ptr>
     {"cd",builtin_cd}
   };
 
+std::vector<std::string> tokenizer(std::string cmd, std::string token=""){
+  bool  single_quote_start=false,
+        double_quote_start=false,
+        double_quote_end=false;
+  std::vector<std::string> tokens;
+  
+  for(auto& c:cmd){
+    // std::cout<<c<<std::endl;
+    if(c=='\"' && double_quote_start==false && single_quote_start==false){
+      double_quote_start=true;
+      continue;
+    }
+    if(c=='\"' && double_quote_start==true){
+      double_quote_start=false;
+      if(double_quote_end){
+        int n=tokens.size();
+        tokens[n-1]+=token;
+      }
+      else{
+        double_quote_end=true;
+        tokens.push_back(token);
+      }
+      token="";
+      continue;
+    }
+    if(c=='\'' && single_quote_start==false && double_quote_start==false){
+      single_quote_start=true;
+      continue;
+    }
+    if(c=='\'' && single_quote_start==true){
+      single_quote_start=false;
+      double_quote_end=false;
+      if(!token.empty()){
+        tokens.push_back(token);
+        token="";
+      }
+      continue;
+    }
+    if(single_quote_start || double_quote_start){
+      token+=c;
+      continue;
+    }
+    if(c==' ' && !token.empty()){
+      tokens.push_back(token);
+      token="";
+    }
+    else{
+      token+=c;
+    }
+  }
+  if(!token.empty()) tokens.push_back(token);
+  return tokens;
+}
+
 void loop(){
   std::cout << "$ ";
   std::string cmd;
   std::getline(std::cin, cmd);
-  std::stringstream ss(cmd);
-  std::vector<std::string> args;
-
-  std::string arg;
-  while(ss>>arg){
-      args.push_back(arg);
-  }
+  // std::stringstream ss(cmd);
+  
+  // std::string arg;
+  // while(ss>>arg){
+    //     args.push_back(arg);
+    // }
+  std::vector<std::string> args=tokenizer(cmd);
+  // for(auto& it:args){
+  //   std::cout<<it<<std::endl;
+  // }
   if(args.empty()) {
     return;
   }
