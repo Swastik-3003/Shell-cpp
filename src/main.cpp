@@ -134,7 +134,8 @@ std::vector<std::string> tokenizer(std::string cmd, std::string token=""){
       token+=c;
       continue;
     }
-    if(c==' ' && !token.empty()){
+    if(c==' '){
+      if(!token.empty())
       tokens.push_back(token);
       token="";
     }
