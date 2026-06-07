@@ -101,7 +101,24 @@ std::vector<std::string> tokenizer(std::string cmd){
   int cmd_size=cmd.size();
   for(int i=0; i<cmd_size; i++){
     char c=cmd[i];
-    
+    if(c=='\\' && !in_single_quote){
+      if(in_double_quote){
+        if((i+1)<cmd.size() && (cmd[i+1]=='$'||cmd[i+1]=='\\'||cmd[i+1]=='"')){
+          curr_token+=cmd[++i];
+        }
+        else{
+          curr_token+=c;
+        }
+      }
+      else{
+        if(i+1<cmd.size()){
+          in_token=true;
+          curr_token+=cmd[++i];
+        }
+      }
+      continue;
+    }
+
     if(c=='"' && !in_single_quote){
       if(in_double_quote){
         in_double_quote=false;
