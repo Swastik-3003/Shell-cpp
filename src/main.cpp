@@ -253,7 +253,7 @@ void loop(){
     int target_fd=redirection_instruction.first;
     if(should_redirect){
        std::string output_file=redirection_instruction.second;
-      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (O_TRUNC), 0644);
+      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (target_fd==3 ? O_APPEND : O_TRUNC), 0644);
       if(fd<0){
         std::cerr<<"Failed to open file\n";
         return;
