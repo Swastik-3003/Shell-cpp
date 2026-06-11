@@ -226,6 +226,18 @@ void loop(){
     exit(1);
   }
   else if(p==0){
+    int saved_stdout=-1;
+    if(should_redirect){
+      int fd=open(file_name.c_str(),O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      if(fd<0){
+        std::cerr<<"Failed to open file\n";
+        return;
+      }
+      saved_stdout=dup(STDOUT_FILENO);
+      dup2(fd,STDOUT_FILENO);
+      close(fd);
+    }
+    
     std::vector<char*> args_c;
     for( std::string& it:args){
       args_c.push_back(&it[0]);
@@ -234,6 +246,11 @@ void loop(){
     if(execvp(args_c[0], args_c.data())<0){
       std::cerr<<args_c[0]<<": command not found\n";
       exit(EXIT_FAILURE);
+    }
+    
+    if(should_redirect){
+      dup2(saved_stdout,STDOUT_FILENO);
+      close(saved_stdout);
     }
     exit(0);
   }
@@ -245,10 +262,10 @@ void loop(){
 int main() {
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
-
+  
   while(!should_exit){
-      loop();
+    loop();
   }
-
+  
   return 0;
 }
