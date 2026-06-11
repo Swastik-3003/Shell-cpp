@@ -4,6 +4,7 @@
 #include <cstring>
 #include <sstream>
 #include <functional>
+#include <fcntl.h>
 #include <map>
 #include <cstdlib>
 #include <unistd.h>
@@ -92,10 +93,7 @@ std::map<std::string,builtin_func_ptr>
     {"cd",builtin_cd}
   };
 
-std::vector<std::string> tokenizer(std::string cmd){
-  bool  in_single_quote=false,
-        in_double_quote=false,
-        in_token=false;
+std::vector<std::string> tokenizer(std::string cmd, bool in_single_quote=false, bool in_double_quote=false, bool in_token=false){
   std::string curr_token="";
   std::vector<std::string> tokens;
   int cmd_size=cmd.size();
@@ -154,33 +152,73 @@ std::vector<std::string> tokenizer(std::string cmd){
   if(in_token){
     tokens.push_back(curr_token);
   }
+  if(in_single_quote || in_double_quote){
+    std::string cmd_new;
+    std::cout<<"> ";
+    if(getline(std::cin,cmd_new)){
+      std::vector<std::string> temp_token=tokenizer("\n"+cmd_new,in_single_quote,in_double_quote,in_token);
+      for(auto it:temp_token){
+        tokens.push_back(it);
+      }
+    }
+  }
   return tokens;
 }
 
+std::string parse_redirection(std::vector<std::string>& args, bool& syntax_error){
+  std::string output_file="";
+  for(int i=0; i<args.size(); i++){
+    if(args[i]==">" || args[i]=="1>"){
+      if(i+1>=args.size()){
+        std::cerr<<"shell: Expected a path to a file";
+        syntax_error=true;
+        return "";
+      }
+      output_file=args[i+1];
+      args.erase(args.begin()+i);
+      args.erase(args.begin()+i+1);
+    }
+  }
+  return output_file;
+}
 void loop(){
   std::cout << "$ ";
   std::string cmd;
-  std::getline(std::cin, cmd);
-  // std::stringstream ss(cmd);
-  
-  // std::string arg;
-  // while(ss>>arg){
-    //     args.push_back(arg);
-    // }
+  getline(std::cin,cmd);
   std::vector<std::string> args=tokenizer(cmd);
-  // for(auto& it:args){
-  //   std::cout<<it<<std::endl;
-  // }
+  bool syntax_error=false;
   if(args.empty()) {
     return;
   }
-  
-  auto f=builtin_map.find(args[0]);
-  if(f!=builtin_map.end()){
-    f->second(args);
+  //checking for operators
+  //only supports > 
+  std::string file_name=parse_redirection(args,syntax_error);
+  bool should_redirect=!file_name.empty();
+  if(syntax_error){ 
     return;
   }
-  
+  //execution
+  auto f=builtin_map.find(args[0]);
+  if(f!=builtin_map.end()){
+    int saved_stdout=-1;
+    if(should_redirect){
+      int fd=open(file_name.c_str(),O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      if(fd<0){
+        std::cerr<<"Failed to open file\n";
+        return;
+      }
+      saved_stdout=dup(STDOUT_FILENO);
+      dup2(fd,STDOUT_FILENO);
+      close(fd);
+    }
+    f->second(args);
+    if(should_redirect){
+      dup2(saved_stdout,STDOUT_FILENO);
+      close(saved_stdout);
+    }
+    return;
+  }
+
   pid_t p=fork();
   int status;
   if(p==-1){
@@ -188,12 +226,12 @@ void loop(){
     exit(1);
   }
   else if(p==0){
-    std::vector<const char*> args_c;
-    for(const std::string& it:args){
-      args_c.push_back(it.c_str());
+    std::vector<char*> args_c;
+    for( std::string& it:args){
+      args_c.push_back(&it[0]);
     }
     args_c.push_back(nullptr);
-    if(execvp(args_c[0], const_cast<char* const*>(args_c.data()))<0){
+    if(execvp(args_c[0], args_c.data())<0){
       std::cerr<<args_c[0]<<": command not found\n";
       exit(EXIT_FAILURE);
     }
