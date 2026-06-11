@@ -186,7 +186,7 @@ std::pair<int,std::string> parse_redirection(std::vector<std::string>& args, boo
       }
       output_file=args[i+1];
       args.erase(args.begin()+i);
-      args.erase(args.begin()+i+1);
+      args.erase(args.begin()+i);
     }
   }
   return {target_fd,output_file};
