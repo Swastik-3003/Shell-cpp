@@ -169,7 +169,9 @@ std::pair<int,std::string> parse_redirection(std::vector<std::string>& args, boo
   std::string output_file="";
   int target_fd=-1;
   for(int i=0; i<args.size(); i++){
-    if(args[i]==">" || args[i]=="1>" || args[i]=="2>" || args[i]==">>" || args[i]=="1>>"){
+    if(args[i]==">" || args[i]=="1>" || args[i]=="2>" || 
+      args[i]==">>" || args[i]=="1>>" ||
+      args[i]=="2>>" ){
       if(args[i]==">" || args[i]=="1>"){
         target_fd=1;
       }
@@ -178,6 +180,9 @@ std::pair<int,std::string> parse_redirection(std::vector<std::string>& args, boo
       }
       if(args[i]==">>" || args[i]=="1>>"){
         target_fd=3;
+      }
+      if(args[i]=="2>>"){
+        target_fd=4;
       }
       if(i+1>=args.size()){
         std::cerr<<"shell: Expected a path to a file";
@@ -214,7 +219,7 @@ void loop(){
     int target_fd=redirection_instruction.first;
     if(should_redirect){
       std::string output_file=redirection_instruction.second;
-      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (target_fd == 3 ? O_APPEND : O_TRUNC), 0644);
+      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (target_fd >= 3 ? O_APPEND : O_TRUNC), 0644);
       if(fd<0){
         std::cerr<<"Failed to open file\n";
         return;
@@ -223,7 +228,7 @@ void loop(){
         saved_std=dup(STDOUT_FILENO);
         dup2(fd,STDOUT_FILENO); 
       }
-      else if(target_fd==2){
+      else if(target_fd==2 || target_fd==4){
         saved_std=dup(STDERR_FILENO);
         dup2(fd,STDERR_FILENO);
       }
@@ -234,7 +239,7 @@ void loop(){
       if(target_fd==1 || target_fd==3){
         dup2(saved_std,STDOUT_FILENO);
       }
-      else if(target_fd==2){
+      else if(target_fd==2 || target_fd==4){
         dup2(saved_std,STDERR_FILENO);
       }
       close(saved_std);
@@ -253,7 +258,7 @@ void loop(){
     int target_fd=redirection_instruction.first;
     if(should_redirect){
        std::string output_file=redirection_instruction.second;
-      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (target_fd==3 ? O_APPEND : O_TRUNC), 0644);
+      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (target_fd>=3 ? O_APPEND : O_TRUNC), 0644);
       if(fd<0){
         std::cerr<<"Failed to open file\n";
         return;
@@ -262,7 +267,7 @@ void loop(){
         saved_std=dup(STDOUT_FILENO);
         dup2(fd,STDOUT_FILENO); 
       }
-      else if(target_fd==2){
+      else if(target_fd==2 || target_fd==4){
         saved_std=dup(STDERR_FILENO);
         dup2(fd,STDERR_FILENO);
       }
