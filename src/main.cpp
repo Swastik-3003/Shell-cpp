@@ -200,7 +200,7 @@ void loop(){
   //checking for operators
   //only supports > 
   std::pair<int,std::string> redirection_instruction=parse_redirection(args,syntax_error);
-  bool should_redirect=!file_name.second.empty();
+  bool should_redirect=!redirection_instruction.second.empty();
   if(syntax_error){ 
     return;
   }
