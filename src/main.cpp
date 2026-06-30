@@ -196,106 +196,40 @@ std::pair<int,std::string> parse_redirection(std::vector<std::string>& args, boo
   }
   return {target_fd,output_file};
 }
-void command_execution(std::vector<std::string> args, int inp_fd=-1, int out_fd=-1){
-  bool syntax_error=false;
-  std::pair<int,std::string> redirection_instruction=parse_redirection(args,syntax_error);
-  if(syntax_error){
-    std::cerr<<"Syntax Error\n";
-    exit(1);
-  }
-  int saved_std_2=-1;
-  if(inp_fd!=-1){
-    saved_std_2=dup(STDIN_FILENO);
-    dup2(inp_fd,STDIN_FILENO);
-    close(inp_fd);
-  }
-  if(out_fd!=-1){
-    saved_std_2=dup(STDOUT_FILENO);
-    dup2(out_fd,STDOUT_FILENO);
-    close(out_fd);
-  }
-  auto f=builtin_map.find(args[0]);
-  if(f!=builtin_map.end()){
-    int saved_std=-1;
-    int target=redirection_instruction.first;
-    if(target!=-1){
-      std::string output_file=redirection_instruction.second;
-      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (target >= 3 ? O_APPEND : O_TRUNC), 0644);
-      if(fd<0){
-        std::cerr<<"Failed to open file\n";
-        return;
-      }
-      if(target==1 || target==3){
-        saved_std=dup(STDOUT_FILENO);
-        dup2(fd,STDOUT_FILENO); 
-      }
-      else if(target==2 || target==4){
-        saved_std=dup(STDERR_FILENO);
-        dup2(fd,STDERR_FILENO);
-      }
-      close(fd);
-    }
-    f->second(args);
-    if(target!=-1){
-      if(target==1 || target==3){
-        dup2(saved_std,STDOUT_FILENO);
-      }
-      else if(target==2 || target==4){
-        dup2(saved_std,STDERR_FILENO);
-      }
-      close(saved_std);
-    }
-    if(inp_fd!=-1){
-      dup2(saved_std_2,STDIN_FILENO);
-    }
-    if(out_fd!=-1){
-      dup2(saved_std_2,STDOUT_FILENO);
-    }
-    return;
-  }
+void command_execution(std::vector<std::string> args, int inp_fd = -1, int out_fd = -1) {
+    bool syntax_error = false;
+    std::pair<int, std::string> red = parse_redirection(args, syntax_error);
 
-
-    int saved_std=-1;
-    int target=redirection_instruction.first;
-    if(target!=-1){
-      std::string output_file=redirection_instruction.second;
-      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (target>=3 ? O_APPEND : O_TRUNC), 0644);
-      if(fd<0){
-        std::cerr<<"Failed to open file\n";
+    // 1. Handle Builtins
+    if (builtin_map.count(args[0])) {
+        int saved_out = -1, saved_err = -1;
+        if (red.first != -1) {
+            int fd = open(red.second.c_str(), O_WRONLY | O_CREAT | (red.first >= 3 ? O_APPEND : O_TRUNC), 0644);
+            if (red.first == 1 || red.first == 3) { saved_out = dup(STDOUT_FILENO); dup2(fd, STDOUT_FILENO); }
+            else { saved_err = dup(STDERR_FILENO); dup2(fd, STDERR_FILENO); }
+            close(fd);
+        }
+        builtin_map[args[0]](args);
+        if (saved_out != -1) { dup2(saved_out, STDOUT_FILENO); close(saved_out); }
+        if (saved_err != -1) { dup2(saved_err, STDERR_FILENO); close(saved_err); }
         return;
-      }
-      if(target==1 || target==3){
-        saved_std=dup(STDOUT_FILENO);
-        dup2(fd,STDOUT_FILENO); 
-      }
-      else if(target==2 || target==4){
-        saved_std=dup(STDERR_FILENO);
-        dup2(fd,STDERR_FILENO);
-      }
-      close(fd);
     }
-    
+
+    // 2. Handle External Commands
+    if (inp_fd != -1) { dup2(inp_fd, STDIN_FILENO); close(inp_fd); }
+    if (out_fd != -1) { dup2(out_fd, STDOUT_FILENO); close(out_fd); }
+
+    if (red.first != -1) {
+        int fd = open(red.second.c_str(), O_WRONLY | O_CREAT | (red.first >= 3 ? O_APPEND : O_TRUNC), 0644);
+        dup2(fd, (red.first == 1 || red.first == 3) ? STDOUT_FILENO : STDERR_FILENO);
+        close(fd);
+    }
+
     std::vector<char*> args_c;
-    for( std::string& it:args){
-      args_c.push_back(&it[0]);
-    }
+    for (auto& s : args) args_c.push_back(&s[0]);
     args_c.push_back(nullptr);
-    if(execvp(args_c[0], args_c.data())<0){
-      std::cerr<<args_c[0]<<": command not found\n";
-      exit(EXIT_FAILURE);
-    }
-    
-    if(target!=-1){
-      if(target==1 || target==3){
-        dup2(saved_std,STDOUT_FILENO);
-      }
-      else if(target==2 || target==4 ){
-        dup2(saved_std,STDERR_FILENO);
-      }
-      close(saved_std);
-    }
-    exit(0);
-  
+    execvp(args_c[0], args_c.data());
+    exit(1);
 }
 void loop(){
 
@@ -329,7 +263,7 @@ void loop(){
   //   std::cout<<std::endl;
   // }
   //execution  
-if (!should_pipe) {
+    if (!should_pipe) {
         command_execution(cmd_grp[0]);
         return;
     }
@@ -378,7 +312,7 @@ int main() {
   std::cerr << std::unitbuf;
   
   while(!should_exit){
-      std::cout << "$ ";
+    std::cout << "$ ";
     loop();
   }
   
