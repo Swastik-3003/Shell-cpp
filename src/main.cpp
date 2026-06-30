@@ -26,8 +26,11 @@ void builtin_exit(std::vector<std::string>& args) {
 
 void builtin_echo(std::vector<std::string>& args) {
   args.erase(args.begin());
-  for (auto& it : args) {
-    std::cout << it << " ";
+  for (int i=0; i<args.size(); i++) {
+    std::cout << args[i];
+    if(i<args.size()-1){
+      std::cout<<" ";
+    }
   }
   std::cout << "\n";
 }
@@ -322,9 +325,11 @@ void loop() {
   }
 
   bool should_pipe = 0;
-
+  // for(auto& it:args){
+  //   std::cout<<it<<" ";
+  // }
+  std::cout<<std::endl;
   std::vector<std::vector<std::string>> cmd_grp;
-
   std::vector<std::string> temp;
 
   for (auto& it : args) {
