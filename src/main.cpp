@@ -352,7 +352,27 @@ void loop() {
     command_execution(cmd_grp[0]);
     return;
   }
-  std::cout<<"Piped\n";
+  int pipe_fd[2];
+  if(pipe(pipe_fd)==-1){
+    std::cerr<<"Error\n";
+    return;
+  }
+  pid_t p1=fork();
+  if(p1==0){
+    close(pipe_fd[0]);
+    command_execution(cmd_grp[0],-1,pipe_fd[1]);
+    exit(0);
+  }
+  pid_t p2=fork();
+  if(p2==0){
+    close(pipe_fd[1]);
+    command_execution(cmd_grp[1],pipe_fd[0],-1);
+    exit(0);
+  }
+  close(pipe_fd[0]);
+  close(pipe_fd[1]);
+  waitpid(p1,NULL,0);
+  waitpid(p2,NULL,0);
 }
 
 int main() {
