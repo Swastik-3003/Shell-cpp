@@ -196,78 +196,79 @@ std::pair<int,std::string> parse_redirection(std::vector<std::string>& args, boo
   }
   return {target_fd,output_file};
 }
-void loop(){
-  std::cout << "$ ";
-  std::string cmd;
-  getline(std::cin,cmd);
-  std::vector<std::string> args=tokenizer(cmd);
+void command_execution(std::vector<std::string> args, int inp_fd=-1, int out_fd=-1){
   bool syntax_error=false;
-  if(args.empty()) {
-    return;
-  }
-  //checking for operators
-  //only supports > 
   std::pair<int,std::string> redirection_instruction=parse_redirection(args,syntax_error);
-  bool should_redirect=!redirection_instruction.second.empty();
-  if(syntax_error){ 
-    return;
+  if(syntax_error){
+    std::cerr<<"Syntax Error\n";
+    exit(1);
   }
-  //execution
+  int saved_std_2=-1;
+  if(inp_fd!=-1){
+    saved_std_2=dup(STDIN_FILENO);
+    dup2(inp_fd,STDIN_FILENO);
+    close(inp_fd);
+  }
+  if(out_fd!=-1){
+    saved_std_2=dup(STDOUT_FILENO);
+    dup2(out_fd,STDOUT_FILENO);
+    close(out_fd);
+  }
   auto f=builtin_map.find(args[0]);
   if(f!=builtin_map.end()){
     int saved_std=-1;
-    int target_fd=redirection_instruction.first;
-    if(should_redirect){
+    int target=redirection_instruction.first;
+    if(target!=-1){
       std::string output_file=redirection_instruction.second;
-      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (target_fd >= 3 ? O_APPEND : O_TRUNC), 0644);
+      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (target >= 3 ? O_APPEND : O_TRUNC), 0644);
       if(fd<0){
         std::cerr<<"Failed to open file\n";
         return;
       }
-      if(target_fd==1 || target_fd==3){
+      if(target==1 || target==3){
         saved_std=dup(STDOUT_FILENO);
         dup2(fd,STDOUT_FILENO); 
       }
-      else if(target_fd==2 || target_fd==4){
+      else if(target==2 || target==4){
         saved_std=dup(STDERR_FILENO);
         dup2(fd,STDERR_FILENO);
       }
       close(fd);
     }
     f->second(args);
-    if(should_redirect){
-      if(target_fd==1 || target_fd==3){
+    if(target!=-1){
+      if(target==1 || target==3){
         dup2(saved_std,STDOUT_FILENO);
       }
-      else if(target_fd==2 || target_fd==4){
+      else if(target==2 || target==4){
         dup2(saved_std,STDERR_FILENO);
       }
       close(saved_std);
     }
+    if(inp_fd!=-1){
+      dup2(saved_std_2,STDIN_FILENO);
+    }
+    if(out_fd!=-1){
+      dup2(saved_std_2,STDOUT_FILENO);
+    }
     return;
   }
 
-  pid_t p=fork();
-  int status;
-  if(p==-1){
-    std::cerr<<"Failure\n";
-    exit(1);
-  }
-  else if(p==0){
+
     int saved_std=-1;
-    int target_fd=redirection_instruction.first;
-    if(should_redirect){
-       std::string output_file=redirection_instruction.second;
-      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (target_fd>=3 ? O_APPEND : O_TRUNC), 0644);
+    int target=redirection_instruction.first;
+    if(target!=-1){
+      std::string output_file=redirection_instruction.second;
+      int fd=open(output_file.c_str(),O_WRONLY | O_CREAT | (target>=3 ? O_APPEND : O_TRUNC), 0644);
       if(fd<0){
         std::cerr<<"Failed to open file\n";
         return;
       }
-      if(target_fd==1 || target_fd==3){
+      if(target==1 || target==3){
         saved_std=dup(STDOUT_FILENO);
         dup2(fd,STDOUT_FILENO); 
       }
-      else if(target_fd==2 || target_fd==4){
+      else if(target==2 || target==4){
         saved_std=dup(STDERR_FILENO);
         dup2(fd,STDERR_FILENO);
       }
@@ -284,20 +285,92 @@ void loop(){
       exit(EXIT_FAILURE);
     }
     
-    if(should_redirect){
-      if(target_fd==1 || target_fd==3){
+    if(target!=-1){
+      if(target==1 || target==3){
         dup2(saved_std,STDOUT_FILENO);
       }
-      else if(target_fd==2){
+      else if(target==2 || target==4 ){
         dup2(saved_std,STDERR_FILENO);
       }
       close(saved_std);
     }
     exit(0);
+  
+}
+void loop(){
+
+  std::string cmd;
+  getline(std::cin,cmd);
+  std::vector<std::string> args=tokenizer(cmd);
+  if(args.empty()) {
+    return;
   }
-  else{
-    waitpid(p,&status,0);
+  //checking for piping
+  bool should_pipe=0;
+  std::vector<std::vector<std::string>> cmd_grp;
+  std::vector<std::string> temp;
+  for(auto& it:args){
+    if(it.size()==1 && it[0]=='|'){
+      should_pipe=1;
+      cmd_grp.push_back(temp);
+      temp.resize(0);
+    }
+    else{
+      temp.push_back(it);
+    }
   }
+  if(!temp.empty()){
+    cmd_grp.push_back(temp);
+  }
+  // for(auto& it:cmd_grp){
+  //   for(auto& it2:it){
+  //     std::cout<<it2<<" ";
+  //   }
+  //   std::cout<<std::endl;
+  // }
+  //execution  
+if (!should_pipe) {
+        command_execution(cmd_grp[0]);
+        return;
+    }
+
+    int prev_read_fd = -1;
+    int pipe_fd[2];
+    std::vector<pid_t> pids;
+
+    for (size_t i = 0; i < cmd_grp.size(); ++i) {
+        // Create pipe if not the last command
+        if (i < cmd_grp.size() - 1) {
+            if (pipe(pipe_fd) == -1) return;
+        }
+
+        pid_t p = fork();
+        if (p == 0) {
+            // 1. Connect input from previous pipe
+            if (prev_read_fd != -1) {
+                dup2(prev_read_fd, STDIN_FILENO);
+                close(prev_read_fd);
+            }
+            // 2. Connect output to current pipe
+            if (i < cmd_grp.size() - 1) {
+                dup2(pipe_fd[1], STDOUT_FILENO);
+                close(pipe_fd[0]);
+                close(pipe_fd[1]);
+            }
+            
+            command_execution(cmd_grp[i]);
+            exit(0);
+        } else {
+            
+            if (prev_read_fd != -1) close(prev_read_fd);
+            if (i < cmd_grp.size() - 1) {
+                close(pipe_fd[1]);
+                prev_read_fd = pipe_fd[0]; // Save for next iteration
+            }
+            pids.push_back(p);
+        }
+    }
+    for (pid_t p : pids) waitpid(p, nullptr, 0);
 }
 
 int main() {
@@ -305,6 +378,7 @@ int main() {
   std::cerr << std::unitbuf;
   
   while(!should_exit){
+      std::cout << "$ ";
     loop();
   }
   
