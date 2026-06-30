@@ -328,7 +328,7 @@ void loop() {
   // for(auto& it:args){
   //   std::cout<<it<<" ";
   // }
-  std::cout<<std::endl;
+  // std::cout<<std::endl;
   std::vector<std::vector<std::string>> cmd_grp;
   std::vector<std::string> temp;
 
