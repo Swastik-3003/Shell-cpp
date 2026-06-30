@@ -271,40 +271,7 @@ void loop(){
     int prev_read_fd = -1;
     int pipe_fd[2];
     std::vector<pid_t> pids;
-
-    for (size_t i = 0; i < cmd_grp.size(); ++i) {
-        // Create pipe if not the last command
-        if (i < cmd_grp.size() - 1) {
-            if (pipe(pipe_fd) == -1) return;
-        }
-
-        pid_t p = fork();
-        if (p == 0) {
-            // 1. Connect input from previous pipe
-            if (prev_read_fd != -1) {
-                dup2(prev_read_fd, STDIN_FILENO);
-                close(prev_read_fd);
-            }
-            // 2. Connect output to current pipe
-            if (i < cmd_grp.size() - 1) {
-                dup2(pipe_fd[1], STDOUT_FILENO);
-                close(pipe_fd[0]);
-                close(pipe_fd[1]);
-            }
-            
-            command_execution(cmd_grp[i]);
-            exit(0);
-        } else {
-            
-            if (prev_read_fd != -1) close(prev_read_fd);
-            if (i < cmd_grp.size() - 1) {
-                close(pipe_fd[1]);
-                prev_read_fd = pipe_fd[0]; // Save for next iteration
-            }
-            pids.push_back(p);
-        }
-    }
-    for (pid_t p : pids) waitpid(p, nullptr, 0);
+    
 }
 
 int main() {
