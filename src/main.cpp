@@ -195,8 +195,47 @@ std::pair<int, std::string> parse_redirection(std::vector<std::string>& args, bo
   }
   return {target_fd, output_file};
 }
+void internal_execution(std::vector<std::string> args, int inp_fd=-1, int out_fd=-1){
+  bool syntax_error = false;
+  std::pair<int, std::string> redirection_instruction = parse_redirection(args, syntax_error);
+  if (syntax_error) {
+    std::cerr << "Syntax Error\n";
+    exit(1);
+  }
+  int saved_std = -1;
+  int target = redirection_instruction.first;
+  if (target != -1) {
+    std::string output_file = redirection_instruction.second;
+    int fd = open(output_file.c_str(), O_WRONLY | O_CREAT | (target >= 3 ? O_APPEND : O_TRUNC), 0644);
+    if (fd < 0) {
+      std::cerr << "Failed to open file\n";
+      return;
+    }
+    if (target == 1 || target == 3) {
+      saved_std = dup(STDOUT_FILENO);
+      dup2(fd, STDOUT_FILENO);
+    } else if (target == 2 || target == 4) {
+      saved_std = dup(STDERR_FILENO);
+      dup2(fd, STDERR_FILENO);
+    }
+    close(fd);
+  }
+  auto f=builtin_map.find(args[0]);
+  f->second(args);
+  if (target != -1) {
+    if (target == 1 || target == 3) {
+      dup2(saved_std, STDOUT_FILENO);
+    } else if (target == 2 || target == 4) {
+      dup2(saved_std, STDERR_FILENO);
+    }
+    close(saved_std);
+  }
 
-void command_execution(std::vector<std::string> args, int inp_fd = -1, int out_fd = -1) {
+  return;
+}
+
+
+void external_execution(std::vector<std::string> args, int inp_fd = -1, int out_fd = -1) {
   bool syntax_error = false;
   std::pair<int, std::string> redirection_instruction = parse_redirection(args, syntax_error);
   if (syntax_error) {
@@ -211,38 +250,7 @@ void command_execution(std::vector<std::string> args, int inp_fd = -1, int out_f
     dup2(out_fd, STDOUT_FILENO);
     close(out_fd);
   }
-  auto f = builtin_map.find(args[0]);
-  if (f != builtin_map.end()) {
-    int saved_std = -1;
-    int target = redirection_instruction.first;
-    if (target != -1) {
-      std::string output_file = redirection_instruction.second;
-      int fd = open(output_file.c_str(), O_WRONLY | O_CREAT | (target >= 3 ? O_APPEND : O_TRUNC), 0644);
-      if (fd < 0) {
-        std::cerr << "Failed to open file\n";
-        return;
-      }
-      if (target == 1 || target == 3) {
-        saved_std = dup(STDOUT_FILENO);
-        dup2(fd, STDOUT_FILENO);
-      } else if (target == 2 || target == 4) {
-        saved_std = dup(STDERR_FILENO);
-        dup2(fd, STDERR_FILENO);
-      }
-      close(fd);
-    }
-    f->second(args);
-    if (target != -1) {
-      if (target == 1 || target == 3) {
-        dup2(saved_std, STDOUT_FILENO);
-      } else if (target == 2 || target == 4) {
-        dup2(saved_std, STDERR_FILENO);
-      }
-      close(saved_std);
-    }
-
-    return;
-  }
+  
 
   int saved_std = -1;
 
@@ -364,16 +372,14 @@ void loop() {
                 close(pipe_fd[j][0]);
                 close(pipe_fd[j][1]);
             }
-            command_execution(cmd_grp[i], -1, -1);
+            external_execution(cmd_grp[i], -1, -1);
             exit(0);
         } else {
             pids.push_back(p);
         }
     } else {
-        command_execution(cmd_grp[i], -1, -1);
+      internal_execution(cmd_grp[i],input,output);
     }
-
-  
     if (i > 0) close(pipe_fd[i - 1][0]);      
     if (i < max_pipes) close(pipe_fd[i][1]);  
 }
