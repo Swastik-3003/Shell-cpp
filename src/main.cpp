@@ -350,8 +350,7 @@ void loop() {
   //   command_execution(cmd_grp[1],pipe_fd[0],-1);
   //   exit(0);
   // }
-    for (size_t i = 0; i < cmd_grp.size(); i++) {
-    // 1. Create pipes
+  for (size_t i = 0; i < cmd_grp.size(); i++) {
     if (i < max_pipes && pipe(pipe_fd[i]) == -1) {
         perror("pipe");
         return;
@@ -361,27 +360,35 @@ void loop() {
     int output = (i == cmd_grp.size() - 1) ? -1 : pipe_fd[i][1];
 
     auto f = builtin_map.find(cmd_grp[i][0]);
-    if (f == builtin_map.end()) {
+    bool is_pipeline = (cmd_grp.size() > 1);
+
+    if (f == builtin_map.end() || is_pipeline) {
         pid_t p = fork();
-        if (p == 0) {
-            // CHILD: Redirect and close all other pipe ends
+        if (p==0) {
+            
             if (input != -1) { dup2(input, STDIN_FILENO); close(input); }
             if (output != -1) { dup2(output, STDOUT_FILENO); close(output); }
             
-            for (int j = 0; j < max_pipes; j++) {
+            
+            for (int j = 0; j < (int)max_pipes; j++) {
                 close(pipe_fd[j][0]);
                 close(pipe_fd[j][1]);
             }
-            external_execution(cmd_grp[i], -1, -1);
-            exit(0);
+
+            if (f != builtin_map.end()) {
+                f->second(cmd_grp[i]); 
+                exit(0);
+            } else {
+                external_execution(cmd_grp[i], -1, -1);
+            }
         } else {
             pids.push_back(p);
         }
     } else {
-      internal_execution(cmd_grp[i],input,output);
+        internal_execution(cmd_grp[i], -1, -1);
     }
-    if (i > 0) close(pipe_fd[i - 1][0]);      
-    if (i < max_pipes) close(pipe_fd[i][1]);  
+    if (i > 0) close(pipe_fd[i - 1][0]);
+    if (i < max_pipes) close(pipe_fd[i][1]);
 }
       for(auto& it:pids){
         int status;
