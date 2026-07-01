@@ -165,6 +165,10 @@ std::vector<std::string> tokenizer(std::string cmd, bool in_single_quote = false
 }
 
 std::pair<int, std::string> parse_redirection(std::vector<std::string>& args, bool& syntax_error) {
+  // returns 1=>redirect output by overwriting
+  //         2=>redirect error by overwriting
+  //         3=>redirect output by appending
+  //         4=>redirect error by appending
   std::string output_file = "";
   int target_fd = -1;
   for (int i = 0; i < args.size(); i++) {
@@ -195,7 +199,7 @@ std::pair<int, std::string> parse_redirection(std::vector<std::string>& args, bo
   }
   return {target_fd, output_file};
 }
-void internal_execution(std::vector<std::string> args, int inp_fd=-1, int out_fd=-1){
+void internal_execution(std::vector<std::string> args){
   bool syntax_error = false;
   std::pair<int, std::string> redirection_instruction = parse_redirection(args, syntax_error);
   if (syntax_error) {
@@ -235,7 +239,7 @@ void internal_execution(std::vector<std::string> args, int inp_fd=-1, int out_fd
 }
 
 
-void external_execution(std::vector<std::string> args, int inp_fd = -1, int out_fd = -1) {
+void external_execution(std::vector<std::string> args) {
   bool syntax_error = false;
   std::pair<int, std::string> redirection_instruction = parse_redirection(args, syntax_error);
   if (syntax_error) {
@@ -275,17 +279,17 @@ void external_execution(std::vector<std::string> args, int inp_fd = -1, int out_
     }
 
     close(fd);
-    }
-    std::vector<char*> args_c;
-    for (std::string& it : args) {
-      args_c.push_back(&it[0]);
-    }
-    args_c.push_back(nullptr);
-    if (execvp(args_c[0], args_c.data()) < 0) {
-      perror(args_c[0]);
-      exit(EXIT_FAILURE);
-    }
-    exit(0);
+  }
+  std::vector<char*> args_c;
+  for (std::string& it : args) {
+    args_c.push_back(&it[0]);
+  }
+  args_c.push_back(nullptr);
+  if (execvp(args_c[0], args_c.data()) < 0) {
+    std::cerr<<args_c[0]<<": command not found\n";
+    exit(EXIT_FAILURE);
+  }
+  exit(0);
 }
 
 void loop() {
@@ -379,17 +383,17 @@ void loop() {
                 f->second(cmd_grp[i]); 
                 exit(0);
             } else {
-                external_execution(cmd_grp[i], -1, -1);
+                external_execution(cmd_grp[i]);
             }
         } else {
             pids.push_back(p);
         }
     } else {
-        internal_execution(cmd_grp[i], -1, -1);
+        internal_execution(cmd_grp[i]);
     }
     if (i > 0) close(pipe_fd[i - 1][0]);
     if (i < max_pipes) close(pipe_fd[i][1]);
-}
+  }
       for(auto& it:pids){
         int status;
         waitpid(it,&status,0);
