@@ -246,15 +246,6 @@ void external_execution(std::vector<std::string> args) {
     std::cerr << "Syntax Error\n";
     exit(1);
   }
-  if (inp_fd != -1) {
-    dup2(inp_fd, STDIN_FILENO);
-    close(inp_fd);
-  }
-  if (out_fd != -1) {
-    dup2(out_fd, STDOUT_FILENO);
-    close(out_fd);
-  }
-  
 
   int saved_std = -1;
 
